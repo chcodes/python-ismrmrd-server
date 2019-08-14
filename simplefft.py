@@ -16,13 +16,27 @@ def groups(iterable, predicate):
             yield group
             group = []
 
+def conditionalGroups(iterable, predicateAccept, predicateFinish):
+    group = []
+    try:
+        for item in iterable:
+            if predicateAccept(item):
+                group.append(item)
+
+            if predicateFinish(item):
+                yield group
+                group = []
+    finally:
+        logging.info("Received StopIteration")
+        iterable.send_close()
 
 def process(connection, config, params):
     logging.info("Processing connection.")
     logging.info("Config: \n%s", config.decode("utf-8"))
     logging.info("Params: \n%s", params.decode("utf-8"))
 
-    for group in groups(connection, lambda acq: acq.is_flag_set(ismrmrd.ACQ_LAST_IN_SLICE)):
+    # for group in groups(connection, lambda acq: acq.is_flag_set(ismrmrd.ACQ_LAST_IN_SLICE)):
+    for group in conditionalGroups(connection, lambda acq: not acq.is_flag_set(ismrmrd.ACQ_IS_PHASECORR_DATA), lambda acq: acq.is_flag_set(ismrmrd.ACQ_LAST_IN_SLICE)):
         image = process_group(group, config, params)
 
         logging.info("Sending image to client:\n%s", image)
