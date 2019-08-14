@@ -80,7 +80,6 @@ class Connection:
         logging.info("Received MRD_MESSAGE_CONFIG_FILE (1)")
         config_file_bytes = self.read(constants.SIZEOF_MRD_MESSAGE_CONFIGURATION_FILE)
         config_file = constants.MrdMessageConfigurationFile.unpack(config_file_bytes)[0]
-
         return config_file
 
     def read_mrd_message_config_script(self):
