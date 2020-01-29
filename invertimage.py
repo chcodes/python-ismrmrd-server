@@ -53,4 +53,15 @@ def process_image(image, config, params):
     # Update the MRD variable with new data
     image.data.ravel()[:] = data.ravel()
 
+    # Set ISMRMRD Meta Attributes
+    meta = ismrmrd.Meta({'GADGETRON_DataRole': 'Image',
+                         'GADGETRON_ImageProcessingHistory': ['FIRE', 'PYTHON'],
+                         'GADGETRON_WindowCenter': '16384',
+                         'GADGETRON_WindowWidth': '32768'})
+    xml = meta.serialize()
+    logging.info("XML: %s", xml)
+    logging.info("Image data has %d elements", image.data.size)
+
+    image.attribute_string = xml
+
     return image

@@ -16,10 +16,10 @@ defaults = {
 def main(args):
 
     # Accept incoming raw data perform FFT reconstruction
-    # server = Server(args.host, args.port, simplefft.process)
+    server = Server(args.host, args.port, simplefft.process)
 
     # Accept incoming images and invert contrast
-    server = Server(args.host, args.port, invertimage.process)
+    # server = Server(args.host, args.port, invertimage.process)
     server.serve()
 
 
