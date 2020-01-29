@@ -38,19 +38,21 @@ class Connection:
         return self.socket.recv(nbytes, socket.MSG_WAITALL)
 
     def send_image(self, image):
+        logging.info("Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022)")
         self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_ISMRMRD_IMAGE))
         self.socket.send(image.getHead())
         self.socket.send(constants.MrdMessageAttribLength.pack(len(image.attribute_string)))
-        self.socket.send(image.attribute_string)
+        # logging.info("Attribute string %s", image.attribute_string)
+        self.socket.send(bytes(image.attribute_string,'utf-8'))
         self.socket.send(bytes(image.data))
 
     def send_acquisition(self, acquisition):
-        logging.info("Received MRD_MESSAGE_ISMRMRD_ACQUISITION (1008)")
+        logging.info("Sending MRD_MESSAGE_ISMRMRD_ACQUISITION (1008)")
         self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_ISMRMRD_ACQUISITION))
         acquisition.serialize_into(self.socket.send)
 
     def send_waveform(self, waveform):
-        logging.info("Received MRD_MESSAGE_ISMRMRD_WAVEFORM (1026)")
+        logging.info("Sending MRD_MESSAGE_ISMRMRD_WAVEFORM (1026)")
         self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_ISMRMRD_WAVEFORM))
         waveform.serialize_into(self.socket.send)
 
@@ -95,14 +97,27 @@ class Connection:
     def read_mrd_message_close(self):
         logging.info("Received MRD_MESSAGE_CLOSE (4) -- Stopping session")
         self.is_exhausted = True
-        raise StopIteration
+        # raise StopIteration
+        return
 
     def read_mrd_message_ismrmrd_acquisition(self):
+        logging.info("Received MRD_MESSAGE_ISMRMRD_ACQUISITION (1008)")
         return ismrmrd.Acquisition.deserialize_from(self.read)
 
     def read_mrd_message_ismrmrd_waveform(self):
+        logging.info("Received MRD_MESSAGE_ISMRMRD_WAVEFORM (1026)")
         return ismrmrd.Waveform.deserialize_from(self.read)
 
     def read_mrd_message_ismrmrd_image(self):
         logging.info("Received MRD_MESSAGE_ISMRMRD_IMAGE (1022)")
+        # header_bytes = self.read(ctypes.sizeof(ismrmrd.ImageHeader))
+        # logging.info("Read in header of %s bytes" % ctypes.sizeof(ismrmrd.ImageHeader))
+
+        # attribute_length_bytes = self.read(ctypes.sizeof(ctypes.c_uint64))
+        # logging.info("Attribute length is %s bytes" % attribute_length_bytes)
+
+        # # attribute_length = ctypes.c_uint64.from_buffer_copy(attribute_length_bytes)
+        # # attribute_bytes = read_exactly(attribute_length.value)
+
+
         return ismrmrd.Image.deserialize_from(self.read)
