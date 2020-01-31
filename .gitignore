@@ -6,3 +6,5 @@
 *.tar
 *.zip
 data/
+*.img
+fire-python-mount/
