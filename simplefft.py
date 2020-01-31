@@ -6,6 +6,8 @@ import logging
 import numpy as np
 import numpy.fft as fft
 
+from flow.recon import fireflow as ff
+
 
 def groups(iterable, predicate):
     group = []
@@ -15,6 +17,7 @@ def groups(iterable, predicate):
         if predicate(item):
             yield group
             group = []
+
 
 def conditionalGroups(iterable, predicateAccept, predicateFinish):
     group = []
@@ -29,6 +32,7 @@ def conditionalGroups(iterable, predicateAccept, predicateFinish):
     finally:
         logging.info("Received StopIteration")
         iterable.send_close()
+
 
 def process(connection, config, params):
     logging.info("Processing connection.")
@@ -60,16 +64,8 @@ def process_group(group, config, params):
     logging.info("Raw data is size %s" % (data.shape,))
     np.save(debugFolder + "/" + "raw.npy", data)
 
-    # Fourier Transform
-    data = fft.fftshift(data, axes=(1, 2))
-    data = fft.ifft2(data)
-    data = fft.ifftshift(data, axes=(1, 2))
-
-    # Sum of squares coil combination
-    data = np.abs(data)
-    data = np.square(data)
-    data = np.sum(data, axis=0)
-    data = np.sqrt(data)
+    # Image reconstruction with pc-mri
+    data = ff.phasecontrast2d(data)
 
     logging.info("Image data is size %s" % (data.shape,))
     np.save(debugFolder + "/" + "img.npy", data)
@@ -78,12 +74,6 @@ def process_group(group, config, params):
     data *= 32768/data.max()
     data = np.around(data)
     data = data.astype(np.int16)
-
-    # Remove phase oversampling
-    nRO = np.size(data,0);
-    data = data[int(nRO/4):int(nRO*3/4),:]
-    logging.info("Image without oversampling is size %s" % (data.shape,))
-    np.save(debugFolder + "/" + "img_crop.npy", data)
 
     # Format as ISMRMRD image data
     image = ismrmrd.Image.from_array(data, acquisition=group[0])
@@ -100,5 +90,3 @@ def process_group(group, config, params):
 
     image.attribute_string = xml
     return image
-
-
