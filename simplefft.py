@@ -6,7 +6,7 @@ import logging
 import numpy as np
 import numpy.fft as fft
 
-from flow.recon import fireflow as ff
+import fireflow as ff
 
 
 def groups(iterable, predicate):
