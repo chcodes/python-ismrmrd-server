@@ -111,9 +111,72 @@ class ZeroFilledRecon(recon.ZeroFilledRecon):
         return data
 
 
+class CNNRecon(ZeroFilledRecon):
+    def run(self, kspace, nt, device, save_psf=False, **kwargs):
+        data = self.load_data(kspace)
+        traj, angles = self.get_trajectory(data['kspace'])
+        mps = recon.get_csm(kspace, traj, device=device)
+        kspace_gated, traj_gated, _ = self.gate(data['kspace'], traj,
+                                                angles, data['triggers'],
+                                                nt, data['tr'],
+                                                data['times'][0])
+
+        # Some memory management
+        data['kspace'] = None  # Releases memory if no more references
+        data['kspace_gated'] = kspace_gated
+        kspace_gated = None
+        data['traj_gated'] = traj_gated
+        traj_gated = None
+        # Reconstruct image
+        img = self.recon(data, mps, device, **kwargs)
+        img = self.crop(img)
+        img_mag, img_phase = phase_difference(img[0], img[1])
+        img = img_mag * np.exp(img_phase*1j)
+
+        # CNN de-aliasing
+        # Load model
+        from flow.exp.cnn_recon.train import load_model
+        import torch
+        from flow.utils import complex
+        model_path = '/tmp/share/dependency/cnn_00268.pth'
+        torch_device = torch.device('cuda:0')
+        model = load_model(model_path, torch_device)
+        # Turn magnitude and phase images into pseduo complex image
+        img = complex.pseudocomplex(img)
+        scale = 1000000
+        img *= scale  # Normalization for the CNN
+        # Add batch dimension
+        img = np.expand_dims(img, 0)
+        # Convert to PyTorch array
+        img = torch.from_numpy(img)
+        # Move array to GPU
+        img = img.to(torch_device, torch.float32)
+        with torch.no_grad():
+            img = model(img)
+        # Get rid of batch dimension
+        img = img[0]
+        # Transfer arrays back to CPU NumPy (pseudo complex)
+        img = img.cpu().numpy()
+        img /= scale
+        # Convert from pseudo complex to magnitude and phase images
+        img_mag = complex.mag(img)
+        img_phase = complex.phase(img)
+        # Convert back to complex image
+        img = img_mag * np.exp(img_phase*1j)
+        return img
+
+
 def phasecontrast2d(data):
     zerofilled_recon = ZeroFilledRecon()
     img = zerofilled_recon(data)
+    img = np.abs(img)
+    # img = np.abs(np.angle(img) + pi)
+    return img
+
+
+def phasecontrast2d_cnn(data):
+    cnn_recon = CNNRecon()
+    img = cnn_recon(data)
     img = np.abs(img)
     # img = np.abs(np.angle(img) + pi)
     return img

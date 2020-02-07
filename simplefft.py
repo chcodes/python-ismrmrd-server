@@ -66,6 +66,7 @@ def process_group(group, config, params):
 
     # Image reconstruction with pc-mri
     data = ff.phasecontrast2d(data)
+    # data = ff.phasecontrast2d_cnn(data)
 
     logging.info("Image data is size %s" % (data.shape,))
     np.save(debugFolder + "/" + "img.npy", data)
